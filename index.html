@@ -64,6 +64,16 @@
       </div>
 
       <div class="form-group">
+        <label for="minValue" class="col-sm-2 control-label">Min Value</label>
+        <div class="col-sm-10">
+          <input id="minValue" type="text" class="form-control" placeholder="" value="0">
+          <div>
+            Minimum PWM value.
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label for="maxValue" class="col-sm-2 control-label">Max Value</label>
         <div class="col-sm-10">
           <input id="maxValue" type="text" class="form-control" placeholder="" value="1023">
@@ -109,11 +119,12 @@
       //generate();
     }
 
-    function generateGammaTable(gamma, steps, resolution) {
+    function generateGammaTable(gamma, steps, minVal, maxVal) {
+      var adjustedVal = maxVal - minVal;
       var arr = new Array(steps).fill(0)
         .map((x, i) => Math.pow(i, gamma))
       arr = arr.map(x => x / Math.max(...arr))
-        .map(x => Math.min(resolution, Math.round(x * resolution)));
+        .map(x => Math.min(adjustedVal, Math.round(x * adjustedVal)) + minVal);
       return arr;
     }
 
@@ -122,9 +133,10 @@
 
       var gamma = parseFloat(document.querySelector('#gamma').value);
       var steps = parseFloat(document.querySelector('#steps').value);
+      var minValue = parseFloat(document.querySelector('#minValue').value);
       var maxValue = parseFloat(document.querySelector('#maxValue').value);
 
-      var lookupTable = generateGammaTable(gamma, steps, maxValue);
+      var lookupTable = generateGammaTable(gamma, steps, minValue, maxValue);
 
       var varName = 'gamma_lut';
       var varType = maxValue < 256 ? 'uint8_t' : maxValue < 65535 ? 'uint16_t' : 'uint32_t';
@@ -138,7 +150,7 @@ const ${varType} ${varName}[${steps}] = {
       output.innerText = snippet;
       //copy(output);
 
-      plotChart(gamma, steps, maxValue, lookupTable);
+      plotChart(gamma, steps, minValue, maxValue, lookupTable);
     }
 
 
@@ -156,7 +168,7 @@ const ${varType} ${varName}[${steps}] = {
     }
 
 
-    function plotChart(gamma, steps, maxValue, lookupTable) {
+    function plotChart(gamma, steps, minValue, maxValue, lookupTable) {
       Highcharts.chart('chart', {
         chart: {
           type: 'line',
@@ -171,7 +183,7 @@ const ${varType} ${varName}[${steps}] = {
           text: 'Gamma curve'
         },
         subtitle: {
-          text: `gamma = ${gamma.toFixed(2)} steps = ${steps} range = 0-${maxValue}`
+          text: `gamma = ${gamma.toFixed(2)} steps = ${steps} range = ${minValue}-${maxValue}`
         },
         plotOptions: {
           line: {
@@ -218,7 +230,7 @@ const ${varType} ${varName}[${steps}] = {
             name: 'Linear',
             type: "line",
             step: "left",
-            data: lookupTable.map((y, i) => i * (maxValue / steps)),
+            data: lookupTable.map((y, i) => (i * ((maxValue-minValue) / steps)) + minValue),
             color: '#cccccc'
           },
           {
